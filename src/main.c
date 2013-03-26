@@ -26,7 +26,7 @@ volatile uint8_t rx_data = 0xaa;
 uint8_t index = 0;
 uint8_t tmp = 0;
 
-void interrupt ISR(void)
+interrupt void ISR(void)
 {
     // RB0 interrupt (on falling edge) detected
     if (INTF)
