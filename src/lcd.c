@@ -4,14 +4,14 @@
  
 /*** LCD device with HD44780 driver ***/
 
-static unsigned char *lcd_db = (unsigned char *) &PORTB; /* Data */
+static volatile unsigned char *lcd_db = (unsigned char *) &PORTB; /* Data */
 static unsigned char lcd_doffset = 4; /* Data offset in the register */
 
 /* Read/Write Enable Pulse 
  * 0: Disabled
  * 1: Read/Write operation enabled
  */
-static bit lcd_en @ ((unsigned)&PORTB<<3)+BIT3;
+static volatile bit lcd_en @ ((unsigned)&PORTB<<3)+BIT3;
 
 /* Register Select
  * 0: Instruction register during write 
@@ -19,13 +19,13 @@ static bit lcd_en @ ((unsigned)&PORTB<<3)+BIT3;
  * operations.
  * 1: Data for read or write operations
  */
-static bit lcd_rs @ ((unsigned)&PORTB<<3)+BIT2;
+static volatile bit lcd_rs @ ((unsigned)&PORTB<<3)+BIT2;
 
 /* Read/Write Control
  * 0: WRITE, LCD accepts data
  * 1: READ, LCD presents data
  */
-static bit lcd_rw @ ((unsigned)&PORTB<<3)+BIT1;
+static volatile bit lcd_rw @ ((unsigned)&PORTB<<3)+BIT1;
 
 
 

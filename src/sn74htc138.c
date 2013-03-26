@@ -5,9 +5,9 @@
 
 #include "sn74htc138.h"
 
-void SN74HTC138_decode(const SN74HTC138_t *sn74htc138, const uint8_t value) {
+void sn74htc138_decode(const sn74htc138_t *device, const uint8_t value) {
     uint8_t a = 0, b = 0, c = 0, enable = 0;
-    if (sn74htc138->zero_based)
+    if (device->zero_based)
     {
         a = 0x1 & value;
         b = (0x2 & value) >> 1;
@@ -26,14 +26,14 @@ void SN74HTC138_decode(const SN74HTC138_t *sn74htc138, const uint8_t value) {
         enable = 1;
     }
     
-    *(sn74htc138->port) =
-            (a << sn74htc138->a_bit) |
-            (b << sn74htc138->b_bit) |
-            (c << sn74htc138->c_bit) |
-            (enable << sn74htc138->enable_bit);
+    *(device->port) =
+            (a << device->a_bit) |
+            (b << device->b_bit) |
+            (c << device->c_bit) |
+            (enable << device->enable_bit);
 }
 
-void SN74HTC138_disable(const SN74HTC138_t *sn74htc138)
+void sn74htc138_disable(const sn74htc138_t *device)
 {
-    *(sn74htc138->port) &= ~(1 << sn74htc138->enable_bit);
+    *(device->port) &= ~(1 << device->enable_bit);
 }

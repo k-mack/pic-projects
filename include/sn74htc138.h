@@ -6,8 +6,7 @@
 #define _SN74HTC183_H_
 
 typedef unsigned char uint8_t;
-
-typedef struct SN74HTC138
+typedef struct decoder
 {
     uint8_t a_bit;      // bit position in port
     uint8_t b_bit;      // bit position in port
@@ -21,10 +20,10 @@ typedef struct SN74HTC138
                         // If == 0, then decoding zero clears all the lamps,
                         // one lights the zeroth lamp, etc.
     volatile uint8_t *port; // port dedicated to controlling the SN74HTC138
-} SN74HTC138_t;
+} sn74htc138_t;
 
-void SN74HTC138_decode(const SN74HTC138_t *sn74htc138, const uint8_t value);
+void sn74htc138_decode(const sn74htc138_t *device, const uint8_t value);
 
-void SN74HTC138_disable(const SN74HTC138_t *sn74htc138);
+void sn74htc138_disable(const sn74htc138_t *device);
 
 #endif

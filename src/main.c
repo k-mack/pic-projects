@@ -21,8 +21,8 @@
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enabled bit (Fail-Safe Clock Monitor is disabled)
 #pragma config DEBUG = OFF      // In-Circuit Debugger Mode bit (In-Circuit Debugger disabled, RB6/ISCPCLK and RB7/ICSPDAT are general purpose I/O pins)
 
-SN74HTC138_t sn74htc138;
-uint8_t rx_data = 0xaa;
+sn74htc138_t decoder;
+volatile uint8_t rx_data = 0xaa;
 uint8_t index = 0;
 uint8_t tmp = 0;
 
@@ -43,11 +43,11 @@ void interrupt ISR(void)
         TMR1IF = 0;
         if ((tmp = (rx_data >> index) & 0x1))
         {
-            SN74HTC138_decode(&sn74htc138, index);
+            sn74htc138_decode(&decoder, index);
         }
         else
         {
-            SN74HTC138_disable(&sn74htc138);
+            sn74htc138_disable(&decoder);
         }
 
         index = (index + 1) % 8;
@@ -68,12 +68,12 @@ int main(void) {
     lcd_init();
     ser_init();
     
-    sn74htc138.a_bit = 0;
-    sn74htc138.b_bit = 1;
-    sn74htc138.c_bit = 2;
-    sn74htc138.enable_bit = 3;
-    sn74htc138.zero_based = 1;
-    sn74htc138.port = (uint8_t *) &PORTC;
+    decoder.a_bit = 0;
+    decoder.b_bit = 1;
+    decoder.c_bit = 2;
+    decoder.enable_bit = 3;
+    decoder.zero_based = 1;
+    decoder.port = (uint8_t *) &PORTC;
 
     timer_init();
 
