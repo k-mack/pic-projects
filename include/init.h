@@ -2,8 +2,8 @@
  * File:   init.h
  * Author: Kevin Macksamie
  */
-#ifndef _INIT_H
-#define _INIT_H
+#ifndef INIT_H
+#define INIT_H
 
 /* Initialize the I/O ports on MCU */
 void io_init(void);

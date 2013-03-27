@@ -27,8 +27,8 @@
  * SOFTWARE.
 */
 
-#ifndef _SER_H_
-#define _SER_H_
+#ifndef SER_H_
+#define SER_H_
 
 /* Valid buffer size value are only power of 2 (ex: 2,4,..,64,128) */
 #define SER_BUFFER_SIZE 16
@@ -60,7 +60,7 @@ void ser_puts2(unsigned char * s);
 void ser_puthex(unsigned char v);
 void ser_init(void);
 
-#ifndef _SER_C_
+#ifndef SER_C_
 extern unsigned char rxfifo[SER_BUFFER_SIZE];
 extern volatile unsigned char rxiptr, rxoptr;
 extern bank1 unsigned char txfifo[SER_BUFFER_SIZE];

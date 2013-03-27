@@ -31,7 +31,7 @@
  * 
  */
 
-#define _SER_C_
+#define SER_C_
 #include <xc.h>
 #include "ser.h"
 

@@ -3,8 +3,8 @@
  * See lcd.c for more info.
  */
 
-#ifndef _LCD_H
-#define _LCD_H
+#ifndef LCD_H
+#define LCD_H
 
 #define CR        0x0D          /* Carriage return */
 #define BACKSPACE 0x08          /* Backspace */

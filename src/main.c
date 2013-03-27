@@ -21,10 +21,14 @@
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enabled bit (Fail-Safe Clock Monitor is disabled)
 #pragma config DEBUG = OFF      // In-Circuit Debugger Mode bit (In-Circuit Debugger disabled, RB6/ISCPCLK and RB7/ICSPDAT are general purpose I/O pins)
 
+#define MAX_1WIRE_DEVICES   1   // Maximum 1-Wire devices to search for
+
 sn74htc138_t decoder;
 volatile uint8_t rx_data = 0xaa;
 uint8_t index = 0;
 uint8_t tmp = 0;
+
+
 
 interrupt void ISR(void)
 {

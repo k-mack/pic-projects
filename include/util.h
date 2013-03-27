@@ -2,8 +2,8 @@
  * File:   util.h
  * Author: Kevin Macksamie
  */
-#ifndef _UTIL_H
-#define _UTIL_H
+#ifndef UTIL_H
+#define UTIL_H
 
 #define _XTAL_FREQ 20000000
 
