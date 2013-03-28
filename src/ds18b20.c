@@ -131,28 +131,28 @@ void ds18b20_find_devices(temp_sensors_t *sensors)
     }
 }
 
-void match_rom(owire_t *bus, uint8_t *ROM)
+void match_rom(owire_t *bus, uint8_t ROM[])
 {
     uint8_t lcv;
     owire_write_byte(bus, DS18B20_ROM_MATCH);
     for (lcv = 0; lcv < 8; lcv++)
     {
-        owire_write_bit(ROM[lcv]);
+        owire_write_bit(bus, ROM[lcv]);
     }
 }
 
-void ds18b20_convert_temp(temp_sensors_t *sensors, uint8_t *ROM)
+void ds18b20_convert_temp(temp_sensors_t *sensors, uint8_t ROM[])
 {
     // TODO: disable interrupts while communicating to device
     uint8_t lcv;
-    owire_reset_pulse(sensors->bus)
+    owire_reset_pulse(sensors->bus);
     match_rom(sensors->bus, ROM);
     owire_write_byte(sensors->bus, DS18B20_CONVERT_TEMP);
 
     // wait for conversion to finish
     while (!owire_read(sensors->bus));
 
-    owire_reset_pulse(sensors->bus)
+    owire_reset_pulse(sensors->bus);
     match_rom(sensors->bus, ROM);
     owire_write_byte(sensors->bus, DS18B20_READ_SCRATCHPAD);
     for (lcv = 0; lcv < 9; lcv++)

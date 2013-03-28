@@ -61,6 +61,17 @@ interrupt void ISR(void)
     ser_int();
 }
 
+void uitoa(uint8_t n, char s[], uint8_t len)
+{
+    uint8_t lcv = 0;
+    for (lcv = len; lcv > 0; lcv--)
+    {
+        s[lcv] = n % 10 + '0';
+        n /= 10;
+    }
+    s[lcv] = 0;
+}
+
 /*
  * Entry point to the MCU application.
  */
@@ -70,10 +81,10 @@ int main(void) {
     lcd_init();
     ser_init();
 
-    temp_sensors.bus.dq_pin = 4;
-    temp_sensors.bus.parasitic = 0;
-    temp_sensors.bus.port = (uint8_t *) &PORTC;
-    temp_sensors.bus.tris = (uint8_t *) &TRISC;
+    temp_sensors.bus->dq_pin = 4;
+    temp_sensors.bus->parasitic = 0;
+    temp_sensors.bus->port = (uint8_t *) &PORTC;
+    temp_sensors.bus->tris = (uint8_t *) &TRISC;
     
     decoder.a_bit = 0;
     decoder.b_bit = 1;
@@ -97,6 +108,7 @@ int main(void) {
     uint8_t TH;
     uint8_t TL;
     uint8_t curr_ROM = 0;
+    char strbuf[8];
 	while (1)
 	{
     	rx_data = ser_getch();  // Block on serial line
@@ -121,6 +133,7 @@ int main(void) {
         else {
             lcd_puts("Temp: +");
         }
+        uitoa(TH, strbuf, 4);
         curr_ROM = (curr_ROM + 1) % MAX_TEMP_SENSORS;
 	}
 

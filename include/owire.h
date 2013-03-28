@@ -7,7 +7,9 @@
 #ifndef OWIRE_H
 #define	OWIRE_H
 
+#include <xc.h>
 #include "common.h"
+#include "util.h"
 
 typedef struct owire
 {
