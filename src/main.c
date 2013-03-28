@@ -3,6 +3,7 @@
  * Author: Kevin Macksamie
  */
 #include <xc.h>
+#include "ds18b20.h"
 #include "init.h"
 #include "lcd.h"
 #include "ser.h"
@@ -21,14 +22,11 @@
 #pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enabled bit (Fail-Safe Clock Monitor is disabled)
 #pragma config DEBUG = OFF      // In-Circuit Debugger Mode bit (In-Circuit Debugger disabled, RB6/ISCPCLK and RB7/ICSPDAT are general purpose I/O pins)
 
-#define MAX_1WIRE_DEVICES   1   // Maximum 1-Wire devices to search for
-
+temp_sensors_t temp_sensors;
 sn74htc138_t decoder;
 volatile uint8_t rx_data = 0xaa;
 uint8_t index = 0;
 uint8_t tmp = 0;
-
-
 
 interrupt void ISR(void)
 {
@@ -71,6 +69,11 @@ int main(void) {
     io_init();
     lcd_init();
     ser_init();
+
+    temp_sensors.bus.dq_pin = 4;
+    temp_sensors.bus.parasitic = 0;
+    temp_sensors.bus.port = (uint8_t *) &PORTC;
+    temp_sensors.bus.tris = (uint8_t *) &TRISC;
     
     decoder.a_bit = 0;
     decoder.b_bit = 1;
@@ -79,21 +82,46 @@ int main(void) {
     decoder.zero_based = 1;
     decoder.port = (uint8_t *) &PORTC;
 
-    timer_init();
+    //timer_init();
+
+    ds18b20_find_devices(&temp_sensors);
 
     lcd_puts("Welcome!\nStart typing @$%");
     ser_puts("Welcome to the LCD module serial interface!\n\r");
 
     rx_data = ser_getch();
     lcd_clear();
-    lcd_putch(rx_data);
-    ser_putch(rx_data);
+    //lcd_putch(rx_data);
+    //ser_putch(rx_data);
 
+    uint8_t TH;
+    uint8_t TL;
+    uint8_t curr_ROM = 0;
 	while (1)
 	{
     	rx_data = ser_getch();  // Block on serial line
-    	ser_putch(rx_data);     // Echo input back to transmitter
-    	lcd_putch(rx_data);     // Write received data to LCD
+//    	ser_putch(rx_data);     // Echo input back to transmitter
+//    	lcd_putch(rx_data);     // Write received data to LCD
+        lcd_clear();
+
+        ds18b20_convert_temp(&temp_sensors, temp_sensors.ROMS[curr_ROM]);
+        TH = ds18b20_temp_hi();
+        TL = ds18b20_temp_lo();
+
+        // partition number from fraction
+        TH = ((TH << 4) & 0xF0) | ((TL >> 4) & 0x0F);
+        TL &= 0x0F;
+
+        if (TH & 0x80)
+        {
+            lcd_puts("Temp: -");
+            TH = TH ^ 0xFF;
+            TL = ((TL ^ 0xFF) + 1) & 0x0F;
+        }
+        else {
+            lcd_puts("Temp: +");
+        }
+        curr_ROM = (curr_ROM + 1) % MAX_TEMP_SENSORS;
 	}
 
     return 0;
