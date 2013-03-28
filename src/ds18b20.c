@@ -111,6 +111,8 @@ uint8_t first(owire_t *device)
 
 void ds18b20_find_devices(temp_sensors_t *sensors)
 {
+    // XXX: before this function is called, disable interrupts while
+    // communicating to device
     uint8_t num_roms;
     uint8_t lcv;
     setup();
@@ -129,6 +131,8 @@ void ds18b20_find_devices(temp_sensors_t *sensors)
             } while (next(sensors->bus) && num_roms < MAX_TEMP_SENSORS);  // find all devices
         }
     }
+    // XXX: after this function is called, re-enable interrupts when
+    // communication is done
 }
 
 void match_rom(owire_t *bus, uint8_t ROM[])
@@ -143,7 +147,8 @@ void match_rom(owire_t *bus, uint8_t ROM[])
 
 void ds18b20_convert_temp(temp_sensors_t *sensors, uint8_t ROM[])
 {
-    // TODO: disable interrupts while communicating to device
+    // XXX: before this function is called, disable interrupts while
+    // communicating to device
     uint8_t lcv;
     owire_reset_pulse(sensors->bus);
     match_rom(sensors->bus, ROM);
@@ -159,7 +164,8 @@ void ds18b20_convert_temp(temp_sensors_t *sensors, uint8_t ROM[])
     {
         scratchpad[lcv] = owire_read_byte(sensors->bus);
     }
-    // TODO: re-enable interrupts when communication is done
+    // XXX: after this function is called, re-enable interrupts when
+    // communication is done
 }
 
 uint8_t ds18b20_temp_hi()
