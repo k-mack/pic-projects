@@ -14,9 +14,6 @@
 typedef struct owire
 {
     uint8_t dq_pin;         // bit position of DQ pin in port and tris
-    uint8_t parasitic;      // If == 1, then device is operating in parasitic
-                            // mode.
-                            // If == 0, then device is power externally.
     volatile uint8_t *port; // port dedicated to controlling the DS18B20 device
     volatile uint8_t *tris; // tri-state register for the respective port
 } owire_t;

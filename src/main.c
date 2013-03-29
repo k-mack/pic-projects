@@ -61,15 +61,71 @@ interrupt void ISR(void)
     ser_int();
 }
 
-void uitoa(uint8_t n, char s[], uint8_t len)
+void uitoa(unsigned int n, char s[], uint8_t len)
 {
     uint8_t lcv = 0;
-    for (lcv = len; lcv > 0; lcv--)
+    for (lcv = len - 1; lcv > 0; lcv--)
     {
         s[lcv] = n % 10 + '0';
         n /= 10;
     }
     s[lcv] = 0;
+}
+
+/*
+*********************************************************************************************************
+* long_to_string_lz()
+*
+* Description : Convert a "long" to a null-terminated string, with leading zeros
+*               (base = decimal)
+* Arguments   : input = number to be converted
+*               str = pointer to string (i.e. display buffer)
+*               numdigits = number of digits to display
+* Returns     : none
+*********************************************************************************************************
+*/
+void long_to_string_lz (unsigned int input, char *str, char numdigits)
+{
+	char digit;
+	for (digit=numdigits; digit > 0; digit--)
+	{
+    	str[digit-1] = (input % 10) + '0';
+    	input = input / 10;
+  	}
+  	str[numdigits] = 0;    // null-terminate the string
+}
+
+/*
+*********************************************************************************************************
+* long_to_string()
+*
+* Description : Convert a "long" to a null-terminated string
+*               (base = decimal)
+* Arguments   : input = number to be converted
+*               str = pointer to string (i.e. display buffer)
+*               numdigits = number of digits to display
+* Returns     : none
+*********************************************************************************************************
+*/
+void long_to_string (unsigned int input, char *str, char numdigits)
+{
+	char digit;
+	int blank = 1;
+
+	long_to_string_lz(input, str, numdigits);
+
+	for (digit=0; digit < numdigits-1; digit++)
+	{
+    	if (str[digit] == '0')
+		{
+			if (blank == 1)
+				str[digit] = ' ';
+    	}
+ 	   else
+		{
+			blank = 0;
+    	}
+	}
 }
 
 /*
@@ -81,10 +137,11 @@ int main(void) {
     lcd_init();
     ser_init();
 
-    temp_sensors.bus->dq_pin = 4;
-    temp_sensors.bus->parasitic = 0;
-    temp_sensors.bus->port = (uint8_t *) &PORTC;
-    temp_sensors.bus->tris = (uint8_t *) &TRISC;
+    owire_t owire_hw;
+    owire_hw.dq_pin = 4;
+    owire_hw.port = (uint8_t *) &PORTC;
+    owire_hw.tris = (uint8_t *) &TRISC;
+    temp_sensors.bus = &owire_hw;
     
     decoder.a_bit = 0;
     decoder.b_bit = 1;
@@ -94,47 +151,79 @@ int main(void) {
     decoder.port = (uint8_t *) &PORTC;
 
     //timer_init();
-
+    ser_puts("Detecting sensors...\n\r");
     ds18b20_find_devices(&temp_sensors);
+    ser_puts("Detection complete\n\r");
+
+    uint8_t i, j, k;
+    for (i = 0; i < MAX_TEMP_SENSORS; i++)
+    {
+        ser_puts("Device: ");
+        for (j = 0; j < 8; j++)
+        {
+            for (k = 0; k < 8; k++)
+            {
+                if ((temp_sensors.ROMS[i][j] >> k) & 0x01)
+                    ser_puts("1");
+                else
+                    ser_puts("0");
+            }
+        }
+        ser_puts("\n\r");
+    }
+
+    if (owire_read(temp_sensors.bus))
+        ser_puts("read 1");
+    else
+        ser_puts("read 0");
+    ser_puts("\n\r");
 
     lcd_puts("Welcome!\nStart typing @$%");
     ser_puts("Welcome to the LCD module serial interface!\n\r");
 
     rx_data = ser_getch();
     lcd_clear();
-    //lcd_putch(rx_data);
-    //ser_putch(rx_data);
+    lcd_putch(rx_data);
+    ser_putch(rx_data);
 
-    uint8_t TH;
-    uint8_t TL;
+    uint8_t T_MSB;
+    uint8_t T_LSB;
     uint8_t curr_ROM = 0;
     char strbuf[8];
+    unsigned int tmp;
+    uint8_t flag = 0;
 	while (1)
 	{
     	rx_data = ser_getch();  // Block on serial line
 //    	ser_putch(rx_data);     // Echo input back to transmitter
 //    	lcd_putch(rx_data);     // Write received data to LCD
-        lcd_clear();
-
-        ds18b20_convert_temp(&temp_sensors, temp_sensors.ROMS[curr_ROM]);
-        TH = ds18b20_temp_hi();
-        TL = ds18b20_temp_lo();
-
-        // partition number from fraction
-        TH = ((TH << 4) & 0xF0) | ((TL >> 4) & 0x0F);
-        TL &= 0x0F;
-
-        if (TH & 0x80)
-        {
-            lcd_puts("Temp: -");
-            TH = TH ^ 0xFF;
-            TL = ((TL ^ 0xFF) + 1) & 0x0F;
-        }
-        else {
-            lcd_puts("Temp: +");
-        }
-        uitoa(TH, strbuf, 4);
-        curr_ROM = (curr_ROM + 1) % MAX_TEMP_SENSORS;
+//        //lcd_clear();
+//
+//        ds18b20_convert_temp(&temp_sensors, NULL);//temp_sensors.ROMS[curr_ROM]);
+//        T_MSB = ds18b20_temp_hi();
+//        T_LSB = ds18b20_temp_lo();
+//
+//        // partition number from fraction
+//        T_MSB = ((T_MSB << 4) & 0xF0) | ((T_LSB >> 4) & 0x0F);
+//        T_LSB &= 0x0F;
+//
+//        if (T_MSB & 0x80)
+//        {
+//            ser_puts("Temp: -");
+//            T_MSB = T_MSB ^ 0xFF;
+//            T_LSB = ((T_LSB ^ 0xFF) + 1) & 0x0F;
+//        }
+//        else {
+//            ser_puts("Temp: +");
+//        }
+//        long_to_string(T_MSB, strbuf, 3);
+//        ser_puts(strbuf);
+//        ser_puts(".");
+//        tmp = ((unsigned int) T_LSB) * 625;
+//        long_to_string_lz(tmp, strbuf, 4);
+//        ser_puts(strbuf);
+//        curr_ROM = (curr_ROM + 1) % MAX_TEMP_SENSORS;
+//        __delay_ms(100);
 	}
 
     return 0;

@@ -3,6 +3,7 @@
  * Author: Kevin Macksamie
  */
 
+#include "ser.h"
 #include "ds18b20.h"
 
 uint8_t scratchpad[9];      // latest scratchpad read
@@ -28,16 +29,19 @@ uint8_t next(owire_t *device)
 
     if (done)
     {
+        ser_puts("next(): done flag set - exiting\n\r");
         done = 0;
         return FALSE;
     }
 
     if (!owire_reset_pulse(device))
     {
+        ser_puts("next(): no presence pulse found\n\r");
         last_discrepancy = 0;
         return FALSE;
     }
 
+    ser_puts("next(): sending ROM search command\n\r");
     owire_write_byte(device, DS18B20_ROM_SEARCH);  // send search ROM command
 
     // collect all 8 ROM bytes
@@ -45,10 +49,13 @@ uint8_t next(owire_t *device)
     {
         if (owire_read_bit(device) == 1) // read true value of ROM bit
             read_bits = 2;
+        __delay_us(6);
         if (owire_read_bit(device) == 1) // read false value of ROM bit
             read_bits |= 1;
-        if (read_bits == 3) // no devices are on the 1-Wire bus
+        if (read_bits == 3) {// no devices are on the 1-Wire bus
+            ser_puts("next(): no devices are on bus\n\r");
             break;
+        }
 
         if (read_bits > 0)
             rom_bit = read_bits >> 1; // capture the true bit (will be 0 or 1)
@@ -128,8 +135,20 @@ void ds18b20_find_devices(temp_sensors_t *sensors)
                     sensors->ROMS[num_roms][lcv] = latest_ROM[lcv];
                 }
                 num_roms++;
-            } while (next(sensors->bus) && num_roms < MAX_TEMP_SENSORS);  // find all devices
+
+                if (num_roms >= MAX_TEMP_SENSORS)
+                    ser_puts("ds18b20_find_devices(): max temp sensors found\n\r");
+                
+            } while (num_roms < MAX_TEMP_SENSORS && next(sensors->bus));  // find all devices
         }
+        else
+        {
+            ser_puts("ds18b20_find_devices(): no first device found\n\r");
+        }
+    }
+    else
+    {
+        ser_puts("ds18b20_find_devices(): no initial presence pulse\n\r");
     }
     // XXX: after this function is called, re-enable interrupts when
     // communication is done
@@ -151,14 +170,20 @@ void ds18b20_convert_temp(temp_sensors_t *sensors, uint8_t ROM[])
     // communicating to device
     uint8_t lcv;
     owire_reset_pulse(sensors->bus);
-    match_rom(sensors->bus, ROM);
+    if (ROM)
+        match_rom(sensors->bus, ROM);
+    else
+        owire_write_byte(sensors->bus, DS18B20_ROM_SKIP);
     owire_write_byte(sensors->bus, DS18B20_CONVERT_TEMP);
 
     // wait for conversion to finish
     while (!owire_read(sensors->bus));
 
     owire_reset_pulse(sensors->bus);
-    match_rom(sensors->bus, ROM);
+    if (ROM)
+        match_rom(sensors->bus, ROM);
+    else
+        owire_write_byte(sensors->bus, DS18B20_ROM_SKIP);
     owire_write_byte(sensors->bus, DS18B20_READ_SCRATCHPAD);
     for (lcv = 0; lcv < 9; lcv++)
     {
@@ -168,12 +193,12 @@ void ds18b20_convert_temp(temp_sensors_t *sensors, uint8_t ROM[])
     // communication is done
 }
 
-uint8_t ds18b20_temp_hi()
+uint8_t ds18b20_temp_hi(void)
 {
     return scratchpad[1];
 }
 
-uint8_t ds18b20_temp_lo()
+uint8_t ds18b20_temp_lo(void)
 {
     return scratchpad[0];
 }

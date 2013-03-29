@@ -33,8 +33,8 @@ typedef struct temp_sensors
 
 void ds18b20_find_devices(temp_sensors_t *sensors);
 void ds18b20_convert_temp(temp_sensors_t *sensors, uint8_t ROM[]);
-uint8_t ds18b20_temp_hi();
-uint8_t ds18b20_temp_lo();
+uint8_t ds18b20_temp_hi(void);
+uint8_t ds18b20_temp_lo(void);
 
 #endif	/* DS18B20_H */
 
