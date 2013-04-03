@@ -8,24 +8,30 @@
 #define	OWIRE_H
 
 #include <xc.h>
-#include "common.h"
 #include "util.h"
 
-typedef struct owire
+/*typedef struct owire
 {
     uint8_t dq_pin;         // bit position of DQ pin in port and tris
     volatile uint8_t *port; // port dedicated to controlling the DS18B20 device
     volatile uint8_t *tris; // tri-state register for the respective port
-} owire_t;
+} owire_t;*/
 
-void owire_drive_low(owire_t *device);
-void owire_drive_high(owire_t *device);
-uint8_t owire_read(owire_t *device);
-void owire_write_byte(owire_t *device, const uint8_t write_byte);
-uint8_t owire_read_byte(owire_t *device);
-uint8_t owire_reset_pulse(owire_t *device);
-void owire_write_bit(owire_t *device, const uint8_t write_bit);
-uint8_t owire_read_bit(owire_t *device);
+void owire_drive_low();
+
+void owire_drive_high();
+
+unsigned char owire_read();
+
+void owire_write_byte(unsigned char write_byte);
+
+unsigned char owire_read_byte();
+
+unsigned char owire_reset_pulse();
+
+void owire_write_bit(const unsigned char write_bit);
+
+unsigned char owire_read_bit();
 
 #endif	/* OWIRE_H */
 

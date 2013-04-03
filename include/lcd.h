@@ -6,6 +6,9 @@
 #ifndef LCD_H
 #define LCD_H
 
+#include <xc.h>
+#include "util.h"
+
 #define CR        0x0D          /* Carriage return */
 #define BACKSPACE 0x08          /* Backspace */
 #define DEL       0x7F          /* Delete */
@@ -21,11 +24,19 @@
 #define LINE1_END_ADDR      0x0F /* End address of line 1 */
 #define LINE2_END_ADDR      0x4F /* End address of line 2 */
 
+#define LCD_LINE1           0x00
+#define LCD_LINE2           0x40
+
+#define CHAR_DEGREE         0xDF /* Degree symbol */
+
 /* Clear and home the LCD */
 void lcd_clear(void);
 
 /* Disable LCD display */
 void lcd_disable(void);
+
+/* Move cursor to address */
+void lcd_goto(unsigned char);
 
 /* Return cursor home */
 void lcd_home(void);

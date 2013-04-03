@@ -27,14 +27,14 @@
 
 typedef struct temp_sensors
 {
-    owire_t *bus;                       // the 1-Wire bus used for the sensors
-    uint8_t ROMS[MAX_TEMP_SENSORS][8];  // 1-Wire sensors' ROMS
+    /*owire_t *bus;                       // the 1-Wire bus used for the sensors*/
+    unsigned char ROMS[MAX_TEMP_SENSORS][8];  // 1-Wire sensors' ROMS
 } temp_sensors_t;
 
 void ds18b20_find_devices(temp_sensors_t *sensors);
-void ds18b20_convert_temp(temp_sensors_t *sensors, uint8_t ROM[]);
-uint8_t ds18b20_temp_hi(void);
-uint8_t ds18b20_temp_lo(void);
+void ds18b20_convert_temp(unsigned char ROM[]);
+unsigned char ds18b20_temp_hi(void);
+unsigned char ds18b20_temp_lo(void);
 
 #endif	/* DS18B20_H */
 

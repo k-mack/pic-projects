@@ -11,22 +11,22 @@
 #include "util.h"
 
 // CONFIG
-#pragma config FOSC = HS        // Oscillator Selection bits (HS oscillator: High-speed crystal/resonator on RA6/OSC2/CLKOUT/T1OSO and RA7/OSC1/CLKIN/T1OSI)
-#pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled and can be enabled by SWDTEN bit of the WDTCON register)
-#pragma config PWRTE = OFF      // Power Up Timer Enable bit (PWRT disabled)
-#pragma config MCLRE = OFF      // RE3/MCLR pin function select bit (RE3/MCLR pin function is digital input, MCLR internally tied to VDD)
-#pragma config CP = OFF         // Code Protection bit (Program memory code protection is disabled)
-#pragma config CPD = OFF        // Data Code Protection bit (Data memory code protection is disabled)
-#pragma config BOREN = OFF      // Brown-out Reset Selection bits (BOR disabled)
-#pragma config IESO = OFF       // Internal External Switchover bit (Internal/External Switchover mode is disabled)
-#pragma config FCMEN = OFF      // Fail-Safe Clock Monitor Enabled bit (Fail-Safe Clock Monitor is disabled)
-#pragma config DEBUG = OFF      // In-Circuit Debugger Mode bit (In-Circuit Debugger disabled, RB6/ISCPCLK and RB7/ICSPDAT are general purpose I/O pins)
+#pragma config FOSC = HS    // Oscillator Selection bits (HS oscillator: High-speed crystal/resonator on RA6/OSC2/CLKOUT/T1OSO and RA7/OSC1/CLKIN/T1OSI)
+#pragma config WDTE = OFF   // Watchdog Timer Enable bit (WDT disabled and can be enabled by SWDTEN bit of the WDTCON register)
+#pragma config PWRTE = OFF  // Power Up Timer Enable bit (PWRT disabled)
+#pragma config MCLRE = OFF  // RE3/MCLR pin function select bit (RE3/MCLR pin function is digital input, MCLR internally tied to VDD)
+#pragma config CP = OFF     // Code Protection bit (Program memory code protection is disabled)
+#pragma config CPD = OFF    // Data Code Protection bit (Data memory code protection is disabled)
+#pragma config BOREN = OFF  // Brown-out Reset Selection bits (BOR disabled)
+#pragma config IESO = OFF   // Internal External Switchover bit (Internal/External Switchover mode is disabled)
+#pragma config FCMEN = OFF  // Fail-Safe Clock Monitor Enabled bit (Fail-Safe Clock Monitor is disabled)
+#pragma config DEBUG = OFF  // In-Circuit Debugger Mode bit (In-Circuit Debugger disabled, RB6/ISCPCLK and RB7/ICSPDAT are general purpose I/O pins)
 
 temp_sensors_t temp_sensors;
 sn74htc138_t decoder;
-volatile uint8_t rx_data = 0xaa;
-uint8_t index = 0;
-uint8_t tmp = 0;
+volatile unsigned char rx_data = 0xaa;
+unsigned char index = 0;
+unsigned char tmp = 0;
 
 interrupt void ISR(void)
 {
@@ -61,71 +61,60 @@ interrupt void ISR(void)
     ser_int();
 }
 
-void uitoa(unsigned int n, char s[], uint8_t len)
+/*
+ *********************************************************************************************************
+ * long_to_string_lz()
+ *
+ * Description : Convert a "long" to a null-terminated string, with leading zeros
+ *               (base = decimal)
+ * Arguments   : input = number to be converted
+ *               str = pointer to string (i.e. display buffer)
+ *               numdigits = number of digits to display
+ * Returns     : none
+ *********************************************************************************************************
+ */
+void long_to_string_lz(unsigned int input, char *str, char numdigits)
 {
-    uint8_t lcv = 0;
-    for (lcv = len - 1; lcv > 0; lcv--)
+    char digit;
+    for (digit = numdigits; digit > 0; digit--)
     {
-        s[lcv] = n % 10 + '0';
-        n /= 10;
+        str[digit - 1] = (input % 10) + '0';
+        input = input / 10;
     }
-    s[lcv] = 0;
+    str[numdigits] = 0; // null-terminate the string
 }
 
 /*
-*********************************************************************************************************
-* long_to_string_lz()
-*
-* Description : Convert a "long" to a null-terminated string, with leading zeros
-*               (base = decimal)
-* Arguments   : input = number to be converted
-*               str = pointer to string (i.e. display buffer)
-*               numdigits = number of digits to display
-* Returns     : none
-*********************************************************************************************************
-*/
-void long_to_string_lz (unsigned int input, char *str, char numdigits)
+ *********************************************************************************************************
+ * long_to_string()
+ *
+ * Description : Convert a "long" to a null-terminated string
+ *               (base = decimal)
+ * Arguments   : input = number to be converted
+ *               str = pointer to string (i.e. display buffer)
+ *               numdigits = number of digits to display
+ * Returns     : none
+ *********************************************************************************************************
+ */
+void long_to_string(unsigned int input, char *str, char numdigits)
 {
-	char digit;
-	for (digit=numdigits; digit > 0; digit--)
-	{
-    	str[digit-1] = (input % 10) + '0';
-    	input = input / 10;
-  	}
-  	str[numdigits] = 0;    // null-terminate the string
-}
+    char digit;
+    int blank = 1;
 
-/*
-*********************************************************************************************************
-* long_to_string()
-*
-* Description : Convert a "long" to a null-terminated string
-*               (base = decimal)
-* Arguments   : input = number to be converted
-*               str = pointer to string (i.e. display buffer)
-*               numdigits = number of digits to display
-* Returns     : none
-*********************************************************************************************************
-*/
-void long_to_string (unsigned int input, char *str, char numdigits)
-{
-	char digit;
-	int blank = 1;
+    long_to_string_lz(input, str, numdigits);
 
-	long_to_string_lz(input, str, numdigits);
-
-	for (digit=0; digit < numdigits-1; digit++)
-	{
-    	if (str[digit] == '0')
-		{
-			if (blank == 1)
-				str[digit] = ' ';
-    	}
- 	   else
-		{
-			blank = 0;
-    	}
-	}
+    for (digit = 0; digit < numdigits - 1; digit++)
+    {
+        if (str[digit] == '0')
+        {
+            if (blank == 1)
+                str[digit] = ' ';
+        } 
+        else
+        {
+            blank = 0;
+        }
+    }
 }
 
 /*
@@ -137,25 +126,30 @@ int main(void) {
     lcd_init();
     ser_init();
 
-    owire_t owire_hw;
+    /*owire_t owire_hw;
     owire_hw.dq_pin = 4;
     owire_hw.port = (uint8_t *) &PORTC;
     owire_hw.tris = (uint8_t *) &TRISC;
-    temp_sensors.bus = &owire_hw;
+    temp_sensors.bus = &owire_hw;*/
     
     decoder.a_bit = 0;
     decoder.b_bit = 1;
     decoder.c_bit = 2;
     decoder.enable_bit = 3;
     decoder.zero_based = 1;
-    decoder.port = (uint8_t *) &PORTC;
+    decoder.port = (unsigned char *) &PORTC;
 
     //timer_init();
+#ifndef NODEBUG
     ser_puts("Detecting sensors...\n\r");
+#endif
     ds18b20_find_devices(&temp_sensors);
+#ifndef NODEBUG
     ser_puts("Detection complete\n\r");
+#endif
 
-    uint8_t i, j, k;
+#ifndef NODEBUG
+    unsigned char i, j, k;
     for (i = 0; i < MAX_TEMP_SENSORS; i++)
     {
         ser_puts("Device: ");
@@ -172,59 +166,67 @@ int main(void) {
         ser_puts("\n\r");
     }
 
-    if (owire_read(temp_sensors.bus))
+
+    if (owire_read())
         ser_puts("read 1");
     else
         ser_puts("read 0");
     ser_puts("\n\r");
+#endif
 
     lcd_puts("Welcome!\nStart typing @$%");
     ser_puts("Welcome to the LCD module serial interface!\n\r");
 
     rx_data = ser_getch();
     lcd_clear();
-    lcd_putch(rx_data);
-    ser_putch(rx_data);
+//    lcd_putch(rx_data);
+//    ser_putch(rx_data);
 
-    uint8_t T_MSB;
-    uint8_t T_LSB;
-    uint8_t curr_ROM = 0;
+    unsigned char T_MSB;
+    unsigned char T_LSB;
+    unsigned char curr_ROM = 0;
     char strbuf[8];
     unsigned int tmp;
-    uint8_t flag = 0;
-	while (1)
-	{
-    	rx_data = ser_getch();  // Block on serial line
+    unsigned char flag = 0;
+    while (1)
+    {
+//    	rx_data = ser_getch();  // Block on serial line
 //    	ser_putch(rx_data);     // Echo input back to transmitter
 //    	lcd_putch(rx_data);     // Write received data to LCD
-//        //lcd_clear();
 //
-//        ds18b20_convert_temp(&temp_sensors, NULL);//temp_sensors.ROMS[curr_ROM]);
-//        T_MSB = ds18b20_temp_hi();
-//        T_LSB = ds18b20_temp_lo();
-//
+        ds18b20_convert_temp(0);//temp_sensors.ROMS[curr_ROM]);
+        T_MSB = ds18b20_temp_hi();
+        T_LSB = ds18b20_temp_lo();
+
 //        // partition number from fraction
-//        T_MSB = ((T_MSB << 4) & 0xF0) | ((T_LSB >> 4) & 0x0F);
-//        T_LSB &= 0x0F;
-//
-//        if (T_MSB & 0x80)
-//        {
-//            ser_puts("Temp: -");
-//            T_MSB = T_MSB ^ 0xFF;
-//            T_LSB = ((T_LSB ^ 0xFF) + 1) & 0x0F;
-//        }
-//        else {
-//            ser_puts("Temp: +");
-//        }
-//        long_to_string(T_MSB, strbuf, 3);
-//        ser_puts(strbuf);
-//        ser_puts(".");
-//        tmp = ((unsigned int) T_LSB) * 625;
-//        long_to_string_lz(tmp, strbuf, 4);
-//        ser_puts(strbuf);
-//        curr_ROM = (curr_ROM + 1) % MAX_TEMP_SENSORS;
-//        __delay_ms(100);
-	}
+        T_MSB = ((T_MSB << 4) & 0xF0) | ((T_LSB >> 4) & 0x0F);
+        T_LSB &= 0x0F;
+
+        lcd_clear();
+        lcd_home();
+        if (T_MSB & 0x80)
+        {
+            lcd_puts("-");
+            T_MSB = T_MSB ^ 0xFF;
+            T_LSB = ((T_LSB ^ 0xFF) + 1) & 0x0F;
+        }
+        else
+        {
+            lcd_puts("+");
+        }
+        long_to_string(T_MSB, strbuf, 3);   // integer is 3 sig figs
+        lcd_puts(strbuf);
+        lcd_puts(".");
+        tmp = ((unsigned int) T_LSB) * 625;
+        long_to_string_lz(tmp, strbuf, 4);  // fraction is 4 sig figs
+        lcd_puts(strbuf);
+        lcd_puts("C");
+
+        lcd_goto(LCD_LINE2);
+        // TODO: put Fahrenheit conversion on line 2
+
+        __delay_ms(100);
+    }
 
     return 0;
 }

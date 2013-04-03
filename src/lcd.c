@@ -1,11 +1,11 @@
 #include <xc.h>
 #include "lcd.h"
-#include "util.h"
  
 /*** LCD device with HD44780 driver ***/
 
 static volatile unsigned char *lcd_db = (unsigned char *) &PORTB; /* Data */
 static unsigned char lcd_doffset = 4; /* Data offset in the register */
+static unsigned char addr = LINE1_START_ADDR; /* Address counter */
 
 /* Read/Write Enable Pulse 
  * 0: Disabled
@@ -59,6 +59,7 @@ void lcd_clear(void)
 {
     lcd_cmd(0x01);
     __delay_ms(2);
+    addr = LINE1_START_ADDR;
 }
 
 /*****************************************************************************
@@ -107,6 +108,28 @@ void lcd_disable(void)
 }
 
 /*****************************************************************************
+ * Subroutine: lcd_disable
+ *
+ * Description:
+ * This subroutine disables the LCD.
+ *
+ * Input Parameters:
+ * None
+ *
+ * Output Parameters:
+ * lcd_en
+ * lcd_rw
+ *
+ * Subroutines:
+ * None
+ *****************************************************************************/
+void lcd_goto(unsigned char address)
+{
+    lcd_cmd(0x80 | address);
+    addr = address;
+}
+
+/*****************************************************************************
  * Subroutine: lcd_home
  *
  * Description:
@@ -125,6 +148,7 @@ void lcd_home(void)
 {
     lcd_cmd(0x2);
     __delay_ms(2);
+    addr = LINE1_START_ADDR;
 }    
 
 /*****************************************************************************
@@ -276,7 +300,6 @@ static void lcd_tx_byte(unsigned char byte)
  *****************************************************************************/
 static void lcd_write(unsigned char byte)
 {
-    static unsigned char addr = LINE1_START_ADDR; /* Address counter */
     unsigned char rs_tmp, rw_tmp, ret, nwl_addr;
     
     rs_tmp = lcd_rs;

@@ -5,8 +5,8 @@
 
 #include "sn74htc138.h"
 
-void sn74htc138_decode(const sn74htc138_t *device, const uint8_t value) {
-    uint8_t a = 0, b = 0, c = 0, enable = 0;
+void sn74htc138_decode(const sn74htc138_t *device, const unsigned char value) {
+    unsigned char a = 0, b = 0, c = 0, enable = 0;
     if (device->zero_based)
     {
         a = 0x1 & value;
