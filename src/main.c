@@ -184,10 +184,12 @@ int main(void) {
 
     unsigned char T_MSB;
     unsigned char T_LSB;
-    unsigned char curr_ROM = 0;
+    unsigned char TempHi_F;
+    unsigned char TempLo_F;
+    unsigned char TempHi_C; // Raw high byte
+    unsigned char TempLo_C; // Raw low byte
     char strbuf[8];
-    unsigned int tmp;
-    unsigned char flag = 0;
+    unsigned int tmp16;
     while (1)
     {
 //    	rx_data = ser_getch();  // Block on serial line
@@ -195,19 +197,19 @@ int main(void) {
 //    	lcd_putch(rx_data);     // Write received data to LCD
 //
         ds18b20_convert_temp(0);//temp_sensors.ROMS[curr_ROM]);
-        T_MSB = ds18b20_temp_hi();
-        T_LSB = ds18b20_temp_lo();
+        TempHi_C = ds18b20_temp_hi();
+        TempLo_C = ds18b20_temp_lo();
 
-//        // partition number from fraction
-        T_MSB = ((T_MSB << 4) & 0xF0) | ((T_LSB >> 4) & 0x0F);
-        T_LSB &= 0x0F;
+        // partition number from fraction
+        T_MSB = ((TempHi_C << 4) & 0xF0) | ((TempLo_C >> 4) & 0x0F);
+        T_LSB = TempLo_C & 0x0F;
 
         lcd_clear();
         lcd_home();
-        if (T_MSB & 0x80)
+        if (TempHi_C & 0x80)
         {
             lcd_puts("-");
-            T_MSB = T_MSB ^ 0xFF;
+            T_MSB ^= 0xFF;
             T_LSB = ((T_LSB ^ 0xFF) + 1) & 0x0F;
         }
         else
@@ -217,13 +219,47 @@ int main(void) {
         long_to_string(T_MSB, strbuf, 3);   // integer is 3 sig figs
         lcd_puts(strbuf);
         lcd_puts(".");
-        tmp = ((unsigned int) T_LSB) * 625;
-        long_to_string_lz(tmp, strbuf, 4);  // fraction is 4 sig figs
+        tmp16 = ((unsigned int) T_LSB) * 625;
+        long_to_string_lz(tmp16, strbuf, 4);  // fraction is 4 sig figs
         lcd_puts(strbuf);
+        lcd_putch(CHAR_DEGREE);
         lcd_puts("C");
 
         lcd_goto(LCD_LINE2);
-        // TODO: put Fahrenheit conversion on line 2
+        // 16C + (16C + 4) / 8 + 320
+        // where: 16C = TempHi_C:TempLo_C
+        TempLo_F = (TempLo_C + 4) & 0xF8;   // add 4
+        TempHi_F = TempHi_C;
+        
+        TempHi_F >>= 3;                     // divide
+        TempLo_F >>= 3;
+
+        if (TempHi_C & 0x80)                // sign extend
+        {
+            TempHi_F |= 0xE0;
+            lcd_puts("-");
+        }
+        else
+        {
+            lcd_puts("+");
+        }
+
+        TempLo_F += TempLo_C;               // add original temperature
+        if (STATUSbits.C)
+            TempHi_F += 1;
+        TempHi_F += TempHi_C;
+
+        TempLo_F += 0x01;                   // add 320
+        TempHi_F += 0x40;
+
+        long_to_string(TempHi_F, strbuf, 3);   // integer is 3 sig figs
+        lcd_puts(strbuf);
+        lcd_puts(".");
+        tmp16 = ((unsigned int) TempLo_F);
+        long_to_string_lz(tmp16, strbuf, 4);  // fraction is 4 sig figs
+        lcd_puts(strbuf);
+        lcd_putch(CHAR_DEGREE);
+        lcd_puts("F");
 
         __delay_ms(100);
     }
