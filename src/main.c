@@ -23,9 +23,9 @@
 #pragma config DEBUG = OFF  // In-Circuit Debugger Mode bit (In-Circuit Debugger disabled, RB6/ISCPCLK and RB7/ICSPDAT are general purpose I/O pins)
 
 temp_sensors_t temp_sensors;
-sn74htc138_t decoder;
+//sn74htc138_t decoder;
 volatile unsigned char rx_data = 0xaa;
-unsigned char index = 0;
+//unsigned char index = 0;
 unsigned char tmp = 0;
 
 interrupt void ISR(void)
@@ -40,23 +40,23 @@ interrupt void ISR(void)
     }
 
     // Timer 1 overflowed to 0x0000
-    if (TMR1IF)
-    {
-        TMR1IF = 0;
-        if ((tmp = (rx_data >> index) & 0x1))
-        {
-            sn74htc138_decode(&decoder, index);
-        }
-        else
-        {
-            sn74htc138_disable(&decoder);
-        }
-
-        index = (index + 1) % 8;
-        TMR1H = 0xf8;
-        TMR1L = 0xf0;
-        TMR1IE = 1;
-    }
+//    if (TMR1IF)
+//    {
+//        TMR1IF = 0;
+//        if ((tmp = (rx_data >> index) & 0x1))
+//        {
+//            sn74htc138_decode(&decoder, index);
+//        }
+//        else
+//        {
+//            sn74htc138_disable(&decoder);
+//        }
+//
+//        index = (index + 1) % 8;
+//        TMR1H = 0xf8;
+//        TMR1L = 0xf0;
+//        TMR1IE = 1;
+//    }
 
     ser_int();
 }
@@ -82,6 +82,39 @@ void long_to_string_lz(unsigned int input, char *str, char numdigits)
         input = input / 10;
     }
     str[numdigits] = 0; // null-terminate the string
+}
+
+void km_long_to_string_lz(unsigned int input, unsigned char *str, unsigned char len)
+{
+    signed char digit;
+    unsigned char first = 1;
+#ifndef NODEBUG
+    ser_puts("converting to ascii:\n\r");
+#endif
+    for (digit = len - 2; digit >= 0; digit--)
+    {
+        str[digit] = (input % 10) + '0';
+        input /= 10;
+#ifndef NODEBUG
+        ser_putch(str[digit]);
+        ser_puts("\n\r");
+#endif
+        if (first)
+        {
+            str[--digit] = '.';
+#ifndef NODEBUG
+            ser_putch(str[digit]);
+            ser_puts("\n\r");
+#endif
+        }
+
+        first = 0;
+    }
+    str[len-1] = 0; // null-terminate the string
+#ifndef NODEBUG
+    ser_putch(str[len-1]);
+    ser_puts("\n\r");
+#endif
 }
 
 /*
@@ -117,6 +150,34 @@ void long_to_string(unsigned int input, char *str, char numdigits)
     }
 }
 
+void km_long_to_string(unsigned int input, unsigned char *str, unsigned char len)
+{
+    unsigned char digit;
+    unsigned char blank = 1;
+
+    km_long_to_string_lz(input, str, len);
+
+#ifndef NODEBUG
+    ser_puts("removing leading zeros:\n\r");
+#endif
+    for (digit = 0; digit < len - 1; digit++)
+    {
+        if (str[digit] == '0')
+        {
+            if (blank == 1)
+                str[digit] = ' ';
+        }
+        else
+        {
+            blank = 0;
+        }
+#ifndef NODEBUG
+        ser_putch(str[digit]);
+        ser_puts("\n\r");
+#endif
+    }
+}
+
 /*
  * Entry point to the MCU application.
  */
@@ -132,12 +193,12 @@ int main(void) {
     owire_hw.tris = (uint8_t *) &TRISC;
     temp_sensors.bus = &owire_hw;*/
     
-    decoder.a_bit = 0;
-    decoder.b_bit = 1;
-    decoder.c_bit = 2;
-    decoder.enable_bit = 3;
-    decoder.zero_based = 1;
-    decoder.port = (unsigned char *) &PORTC;
+//    decoder.a_bit = 0;
+//    decoder.b_bit = 1;
+//    decoder.c_bit = 2;
+//    decoder.enable_bit = 3;
+//    decoder.zero_based = 1;
+//    decoder.port = (unsigned char *) &PORTC;
 
     //timer_init();
 #ifndef NODEBUG
@@ -184,11 +245,9 @@ int main(void) {
 
     unsigned char T_MSB;
     unsigned char T_LSB;
-    unsigned char TempHi_F;
-    unsigned char TempLo_F;
     unsigned char TempHi_C; // Raw high byte
     unsigned char TempLo_C; // Raw low byte
-    char strbuf[8];
+    unsigned char strbuf[8];
     unsigned int tmp16;
     while (1)
     {
@@ -226,38 +285,60 @@ int main(void) {
         lcd_puts("C");
 
         lcd_goto(LCD_LINE2);
-        // 16C + (16C + 4) / 8 + 320
+
+        // ----- Conversion to Fahrenheit -----
+        // 10F = 16C + (16C + 4) / 8 + 320
         // where: 16C = TempHi_C:TempLo_C
-        TempLo_F = (TempLo_C + 4) & 0xF8;   // add 4
-        TempHi_F = TempHi_C;
-        
-        TempHi_F >>= 3;                     // divide
-        TempLo_F >>= 3;
 
-        if (TempHi_C & 0x80)                // sign extend
-        {
-            TempHi_F |= 0xE0;
-            lcd_puts("-");
-        }
-        else
-        {
-            lcd_puts("+");
-        }
+        unsigned char _TempLo_C;    // modified low byte
+        unsigned char _TempHi_C;    // modified high byte
 
-        TempLo_F += TempLo_C;               // add original temperature
+        _TempLo_C = TempLo_C;
+        _TempHi_C = TempHi_C;
+
+        // add 4 to round fraction part, but ignore overflow into the integer part
+        _TempLo_C = ((_TempLo_C + 4) & 0x0F) | (_TempLo_C & 0xF0); // add 4
+
+        // divide by 8: >> 3 both bytes, carry bottom 3 from high byte to the lower
+        _TempLo_C >>= 3;         // shift low byte
+        tmp = TempHi_C & 0x03;   // capture bottom 3 bits from high byte
+        _TempLo_C |= (tmp << 5); // insert bottom 3 bits of high byte to top of lower
+        _TempHi_C >>= 3;         // shift high byte
+        if (TempHi_C & 0x80)     // is measured temperature negative?
+            _TempHi_C |= 0xE0;   // sign extend
+
+        // add measured temperture to divided temperature
+        _TempLo_C += TempLo_C;   // add two low bytes
         if (STATUSbits.C)
-            TempHi_F += 1;
-        TempHi_F += TempHi_C;
+            _TempHi_C++;         // mind overflow
+        _TempHi_C += TempHi_C;   // add two high bytes
 
-        TempLo_F += 0x01;                   // add 320
-        TempHi_F += 0x40;
+        // add 320
+        _TempLo_C += 0x40;       // add low byte of 320
+        if (STATUSbits.C)
+            _TempHi_C++;         // mind overflow
+        _TempHi_C += 0x01;       // add high byte of 320
 
-        long_to_string(TempHi_F, strbuf, 3);   // integer is 3 sig figs
-        lcd_puts(strbuf);
-        lcd_puts(".");
-        tmp16 = ((unsigned int) TempLo_F);
-        long_to_string_lz(tmp16, strbuf, 4);  // fraction is 4 sig figs
-        lcd_puts(strbuf);
+        //
+        // <_TempHi_C:_TempLo_C> stores the approx. F temp multipled by 10
+        //
+
+        unsigned int temperature = _TempHi_C;
+        temperature = (temperature << 8) | _TempLo_C;
+
+        km_long_to_string(temperature, strbuf, 8);
+
+        if (TempHi_C & 0x80)
+            lcd_puts("- ");
+        else
+            lcd_puts("+ ");
+
+        // trim string to display
+        for (tmp = 0; tmp < 8; tmp++)
+        {
+            if (strbuf[tmp] != ' ' && strbuf[tmp] != 0)
+                lcd_putch(strbuf[tmp]);
+        }
         lcd_putch(CHAR_DEGREE);
         lcd_puts("F");
 
