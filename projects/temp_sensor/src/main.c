@@ -7,7 +7,6 @@
 #include "init.h"
 #include "lcd.h"
 #include "ser.h"
-#include "sn74htc138.h"
 #include "util.h"
 
 // CONFIG

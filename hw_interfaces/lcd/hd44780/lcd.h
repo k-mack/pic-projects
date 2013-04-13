@@ -7,7 +7,6 @@
 #define LCD_H
 
 #include <xc.h>
-#include "util.h"
 
 #define CR        0x0D          /* Carriage return */
 #define BACKSPACE 0x08          /* Backspace */

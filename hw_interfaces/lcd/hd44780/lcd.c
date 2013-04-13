@@ -11,7 +11,7 @@ static unsigned char addr = LINE1_START_ADDR; /* Address counter */
  * 0: Disabled
  * 1: Read/Write operation enabled
  */
-static volatile bit lcd_en @ ((unsigned)&PORTB<<3)+BIT3;
+static volatile bit lcd_en @ ((unsigned)&PORTB<<3)+3;
 
 /* Register Select
  * 0: Instruction register during write 
@@ -19,13 +19,13 @@ static volatile bit lcd_en @ ((unsigned)&PORTB<<3)+BIT3;
  * operations.
  * 1: Data for read or write operations
  */
-static volatile bit lcd_rs @ ((unsigned)&PORTB<<3)+BIT2;
+static volatile bit lcd_rs @ ((unsigned)&PORTB<<3)+2;
 
 /* Read/Write Control
  * 0: WRITE, LCD accepts data
  * 1: READ, LCD presents data
  */
-static volatile bit lcd_rw @ ((unsigned)&PORTB<<3)+BIT1;
+static volatile bit lcd_rw @ ((unsigned)&PORTB<<3)+1;
 
 
 

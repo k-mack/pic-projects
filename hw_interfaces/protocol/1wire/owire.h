@@ -8,7 +8,6 @@
 #define	OWIRE_H
 
 #include <xc.h>
-#include "util.h"
 
 /*typedef struct owire
 {
