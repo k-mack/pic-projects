@@ -5,6 +5,8 @@
  * See lcd.c for more info.
  */
 
+#include <xc.h>
+
 #ifndef LCD_H
 #define LCD_H
 
@@ -28,25 +30,38 @@
 
 #define CHAR_DEGREE         0xDF /* Degree symbol */
 
+/*
+ * Represents an LCD device
+ */
+typedef struct LCD
+{
+    volatile unsigned char* data_bus;   // data bus
+    unsigned char bus_offset;           // offset in bus to data lines
+    volatile unsigned char* en_pin;     // enable pin
+    volatile unsigned char* rs_pin;     // register select pin
+    volatile unsigned char* rw_pin;     // register write pin
+    unsigned char addr;                 // address counter
+} LCD_t;
+
 /* Clear and home the LCD */
-void lcd_clear(void);
+void lcd_clear(LCD_t* lcd);
 
 /* Disable LCD display */
-void lcd_disable(void);
+void lcd_disable(LCD_t* lcd);
 
 /* Move cursor to address */
-void lcd_goto(unsigned char pos);
+void lcd_goto(LCD_t* lcd, unsigned char pos);
 
 /* Return cursor home */
-void lcd_home(void);
+void lcd_home(LCD_t* lcd);
 
 /* Initilization LCD device */
-void lcd_init(void);
+void lcd_init(LCD_t* lcd);
 
 /* Write a string to the LCD */
-void lcd_putch(unsigned char byte);
+void lcd_putch(LCD_t* lcd, unsigned char byte);
 
 /* Write a string to the LCD */
-void lcd_puts(const char* str);
+void lcd_puts(LCD_t* lcd, const char* str);
 
 #endif

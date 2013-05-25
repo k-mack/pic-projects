@@ -3,7 +3,7 @@
 PROJECT:=temp_sensor
 MCU:=16F913
 F_CPU:=20000000
-TOOLDIR:="/I/Program Files/Microchip/xc8/v1.12/bin"
+TOOLDIR:="/opt/microchip/xc8/v1.12/bin"
 
 #===================================
 

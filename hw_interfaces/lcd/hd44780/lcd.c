@@ -1,46 +1,41 @@
+/*
+ * Author: Kevin Macksamie
+ */
+
 #include "lcd.h"
  
 /*** LCD device with HD44780 driver ***/
 
-static volatile unsigned char *lcd_db = (unsigned char *) &PORTB; /* Data */
-static unsigned char lcd_doffset = 4; /* Data offset in the register */
-static unsigned char addr = LINE1_START_ADDR; /* Address counter */
-
 /* 
- * Read/Write Enable Pulse 
+ * Read/Write Enable Pulse (enable pin)
  * 0: Disabled
  * 1: Read/Write operation enabled
- */
-static volatile bit lcd_en @ ((unsigned)&PORTB<<3)+3;
-
-/* 
- * Register Select
+ * 
+ * Register Select (register select pin)
  * 0: Instruction register during write 
  * operations. Busy Flash during read
  * operations.
  * 1: Data for read or write operations
- */
-static volatile bit lcd_rs @ ((unsigned)&PORTB<<3)+2;
-
-/* 
- * Read/Write Control
+* 
+ * Read/Write Control (register write pin)
  * 0: WRITE, LCD accepts data
  * 1: READ, LCD presents data
  */
-static volatile bit lcd_rw @ ((unsigned)&PORTB<<3)+1;
 
-
-
-#define LCD_STROBE ((lcd_en = 1),(lcd_en = 0))
-#define LCD_STROBE_SLOW { \
-    lcd_en = 1;  \
+#define LCD_STROBE(x) ((x = 1),(x = 0))
+#define LCD_STROBE_SLOW(x) { \
+    x = 1;  \
     __delay_us(1); \
-    lcd_en = 0;  \
+    x = 0;  \
 }
 
-static void lcd_cmd(unsigned char);
-static void lcd_tx_byte(unsigned char);
-static void lcd_write(unsigned char);
+static void lcd_cmd(LCD_t* lcd, unsigned char cmd);
+static void lcd_tx_byte(LCD_t* lcd, unsigned char byte);
+static void lcd_write(LCD_t* lcd, unsigned char byte);
+static unsigned char read_pin(unsigned char pin);
+static void write_pin(volatile unsigned char* pin, unsigned char data);
+static void strobe_pin(volatile unsigned char* pin);
+static void strobe_pin_slow(volatile unsigned char* pin);
 
 /*****************************************************************************
  * Subroutine: lcd_clear
@@ -49,19 +44,20 @@ static void lcd_write(unsigned char);
  * This subroutine clears the LCD and the address counter is reset.
  *
  * Input Parameters:
- * None
+ * LCD struct reference
  *
  * Output Parameters:
  * None
  *
  * Subroutines:
- * lcd_tx_byte
+ * lcd_cmd
+ * __delay_ms
  *****************************************************************************/
-void lcd_clear(void)
+void lcd_clear(LCD_t* lcd)
 {
-    lcd_cmd(0x01);
+    lcd_cmd(lcd, 0x01);
     __delay_ms(2);
-    addr = LINE1_START_ADDR;
+    lcd->addr = LINE1_START_ADDR;
 }
 
 /*****************************************************************************
@@ -71,20 +67,21 @@ void lcd_clear(void)
  * This private subroutine sends a command to the LCD device.
  *
  * Input Parameters:
- * None
+ * LCD struct reference
+ * LCD Command
  *
  * Output Parameters:
- * lcd_rs
- * lcd_rw
+ * None
+ * 
  *
  * Subroutines:
  * lcd_tx_byte
  *****************************************************************************/
-static void lcd_cmd(unsigned char cmd)
+static void lcd_cmd(LCD_t* lcd, unsigned char cmd)
 {
-    lcd_rs = 0;
-    lcd_rw = 0;
-    lcd_tx_byte(cmd);
+    write_pin(lcd->rs_pin, 0);
+    write_pin(lcd->rw_pin, 0);
+    lcd_tx_byte(lcd, cmd);
 }    
 
 /*****************************************************************************
@@ -94,19 +91,18 @@ static void lcd_cmd(unsigned char cmd)
  * This subroutine disables the LCD.
  *
  * Input Parameters:
- * None
+ * LCD struct reference
  *
  * Output Parameters:
- * lcd_en
- * lcd_rw
+ * None
  *
  * Subroutines:
  * None
  *****************************************************************************/
-void lcd_disable(void)
+void lcd_disable(LCD_t* lcd)
 {
-    lcd_en = 0;
-    lcd_rw = 0;
+    write_pin(lcd->en_pin, 0);
+    write_pin(lcd->rw_pin, 0);
 }
 
 /*****************************************************************************
@@ -116,19 +112,20 @@ void lcd_disable(void)
  * This subroutine disables the LCD.
  *
  * Input Parameters:
- * None
+ * LCD struct reference
+ * LCD address
  *
  * Output Parameters:
  * lcd_en
  * lcd_rw
  *
  * Subroutines:
- * None
+ * lcd_cmd
  *****************************************************************************/
-void lcd_goto(unsigned char address)
+void lcd_goto(LCD_t* lcd, unsigned char address)
 {
-    lcd_cmd(0x80 | address);
-    addr = address;
+    lcd_cmd(lcd, 0x80 | address);
+    lcd->addr = address;
 }
 
 /*****************************************************************************
@@ -138,19 +135,20 @@ void lcd_goto(unsigned char address)
  * This subroutine returns the LCD home and the address counter is reset.
  *
  * Input Parameters:
- * None
+ * LCD struct reference
  *
  * Output Parameters:
  * None
  *
  * Subroutines:
  * lcd_cmd
+ * __delay_ms
  *****************************************************************************/
-void lcd_home(void)
+void lcd_home(LCD_t* lcd)
 {
-    lcd_cmd(0x2);
+    lcd_cmd(lcd, 0x2);
     __delay_ms(2);
-    addr = LINE1_START_ADDR;
+    lcd->addr = LINE1_START_ADDR;
 }    
 
 /*****************************************************************************
@@ -160,57 +158,57 @@ void lcd_home(void)
  * This subroutine initializes the LCD device.
  *
  * Input Parameters:
- * None
+ * LCD struct reference
  *
  * Output Parameters:
- * lcd_db
- * lcd_rs
- * lcd_rw
+ * None
  *
  * Subroutines:
  * lcd_clear
  * lcd_tx_byte
+ * __delay_ms
+ * __delay_us
  *****************************************************************************/
-void lcd_init(void)
+void lcd_init(LCD_t* lcd)
 {
-    lcd_rw = 0;
-    lcd_rs = 0;
+    write_pin(lcd->rw_pin, 0);
+    write_pin(lcd->rs_pin, 0);
     
     /*** Power-On Initialization ***/
     /* Wait 15 ms */
     __delay_ms(15);
     
     /* Write 0x3, pulse enable, wait 4.1 ms or longer */
-    *lcd_db = 0x3 << lcd_doffset;
-    LCD_STROBE;
+    *lcd->data_bus = 0x3 << lcd->bus_offset;
+    strobe_pin(lcd->en_pin);
     __delay_ms(5);
     
     /* Write 0x3, pulse enable, wait 100 us or longer */
-    *lcd_db = 0x3 << lcd_doffset;
-    LCD_STROBE;
+    *lcd->data_bus = 0x3 << lcd->bus_offset;
+    strobe_pin(lcd->en_pin);
     __delay_us(100);
     
     /* Write 0x3, pulse enable, wait 40 us or longer */
-    *lcd_db = 0x3 << lcd_doffset;
-    LCD_STROBE;
+    *lcd->data_bus = 0x3 << lcd->bus_offset;
+    strobe_pin(lcd->en_pin);
     __delay_us(40);
     
     /* Write 0x2, pulse enable, wait 40 us or longer */
-    *lcd_db = 0x2 << lcd_doffset; /* Set 4-bit mode */
-    LCD_STROBE;
+    *lcd->data_bus = 0x2 << lcd->bus_offset; /* Set 4-bit mode */
+    strobe_pin(lcd->en_pin);
     __delay_us(40);
     
     /*** Display Configuration ***/
-    lcd_tx_byte(0x28); /* 4-bit operation */
+    lcd_tx_byte(lcd, 0x28); /* 4-bit operation */
     __delay_us(40);
     
-    lcd_tx_byte(0x06); /* Automatically increase address pointer */
+    lcd_tx_byte(lcd, 0x06); /* Automatically increase address pointer */
     __delay_us(40);
     
-    lcd_tx_byte(0x0C); /* Turn display on */
+    lcd_tx_byte(lcd, 0x0C); /* Turn display on */
     __delay_us(40);
     
-    lcd_clear();
+    lcd_clear(lcd);
 }
 
 /*****************************************************************************
@@ -220,18 +218,19 @@ void lcd_init(void)
  * This subroutine writes a character to the LCD.
  *
  * Input Parameters:
- * data
+ * LCD struct reference
+ * Byte to write to LCD
  *
  * Output Parameters:
- * lcd_rs
+ * None 
  *
  * Subroutines:
  * lcd_write
  *****************************************************************************/
-void lcd_putch(unsigned char data)
+void lcd_putch(LCD_t* lcd, unsigned char data)
 {
-    lcd_rs = 1;
-    lcd_write(data);  
+    write_pin(lcd->rs_pin, 1);
+    lcd_write(lcd, data);  
 }
 
 /*****************************************************************************
@@ -241,19 +240,20 @@ void lcd_putch(unsigned char data)
  * This subroutine writes a string to the LCD.
  *
  * Input Parameters:
- * data
+ * LCD struct reference
+ * Data to write to LCD 
  *
  * Output Parameters:
- * lcd_rs
+ * None 
  *
  * Subroutines:
  * lcd_write
  *****************************************************************************/
-void lcd_puts(const char *data)
+void lcd_puts(LCD_t* lcd, const char *data)
 {
-    lcd_rs = 1;
+    write_pin(lcd->rs_pin, 1);
     while (*data)
-        lcd_write(*data++);  
+        lcd_write(lcd, *data++);  
 }
 
 /*****************************************************************************
@@ -264,23 +264,24 @@ void lcd_puts(const char *data)
  * subroutine bypasses the address counter in lcd_write(unsigned char).
  *
  * Input Parameters:
- * byte
+ * LCD struct reference
+ * Byte to write to LCD 
  *
  * Output Parameters:
- * lcd_db
+ * None
  *
  * Subroutines:
- * None
+ * __delay_us
  *****************************************************************************/
-static void lcd_tx_byte(unsigned char byte)
+static void lcd_tx_byte(LCD_t* lcd, unsigned char byte)
 {
     /* Transfer upper nibble first */
-    *lcd_db = ((byte >> 4) << lcd_doffset) | (*lcd_db & 0x0F);
-    LCD_STROBE_SLOW;
+    *lcd->data_bus = ((byte >> 4) << lcd->bus_offset) | (*lcd->data_bus & 0x0F);
+    strobe_pin_slow(lcd->en_pin);
     
     /* Transfer lower nibble */
-    *lcd_db = ((byte & 0xF) << lcd_doffset) | (*lcd_db & 0x0F);
-    LCD_STROBE_SLOW;
+    *lcd->data_bus = ((byte & 0xF) << lcd->bus_offset) | (*lcd->data_bus & 0x0F);
+    strobe_pin_slow(lcd->en_pin);
     
     __delay_us(40);
 }
@@ -292,7 +293,8 @@ static void lcd_tx_byte(unsigned char byte)
  * This private subroutine writes a character to the LCD.
  *
  * Input Parameters:
- * byte
+ * LCD struct reference
+ * Byte to write to LCD
  *
  * Output Parameters:
  * None
@@ -300,63 +302,87 @@ static void lcd_tx_byte(unsigned char byte)
  * Subroutines:
  * lcd_tx_byte
  *****************************************************************************/
-static void lcd_write(unsigned char byte)
+static void lcd_write(LCD_t* lcd, unsigned char byte)
 {
     unsigned char rs_tmp, rw_tmp, ret, nwl_addr;
     
-    rs_tmp = lcd_rs;
-    rw_tmp = lcd_rw;
+    rs_tmp = read_pin(*lcd->rs_pin);
+    rw_tmp = read_pin(*lcd->rw_pin);
     
     ret = (byte == NWL || byte == CR || byte == ETX);
     if (ret)                                    /* Check for newline */
     {
-        nwl_addr = (addr <= LINE1_END_ADDR+1) ? LINE2_START_ADDR : 
+        nwl_addr = (lcd->addr <= LINE1_END_ADDR+1) ? LINE2_START_ADDR : 
             LINE1_START_ADDR;
-        lcd_cmd(0x80 | nwl_addr);
-        addr = nwl_addr;
-        lcd_rs = rs_tmp;
-        lcd_rw = rw_tmp;
+        lcd_cmd(lcd, 0x80 | nwl_addr);
+        lcd->addr = nwl_addr;
+        write_pin(lcd->rs_pin, rs_tmp);
+        write_pin(lcd->rw_pin, rw_tmp);
         return;
     }
     else if (byte == BACKSPACE || byte == DEL)  /* Check for backspace */
     {
         /* Decrement address */
-        if (addr == LINE1_START_ADDR)
+        if (lcd->addr == LINE1_START_ADDR)
         {
             /* Do nothing */
         }
         else
         {
-            addr = (addr == LINE2_START_ADDR) ? LINE1_END_ADDR : addr - 1;
+            lcd->addr = (lcd->addr == LINE2_START_ADDR) ? LINE1_END_ADDR : lcd->addr - 1;
         }
         
-        lcd_cmd(0x80 | addr); /* Go to new address */
+        lcd_cmd(lcd, 0x80 | lcd->addr); /* Go to new address */
         
         /* Replace previous char with space */
-        lcd_rs = 1;         /* Rather not call lcd_write again */
-        lcd_tx_byte(SPACE); /*                                 */
+        write_pin(lcd->rs_pin, 1); /* Rather not call lcd_write again */
+        lcd_tx_byte(lcd, SPACE);   /*                                 */
         
-        lcd_cmd(0x80 | addr); /* Go back to new address */
+        lcd_cmd(lcd, 0x80 | lcd->addr); /* Go back to new address */
         
-        lcd_rs = rs_tmp;
-        lcd_rw = rw_tmp;
+        write_pin(lcd->rs_pin, rs_tmp);
+        write_pin(lcd->rw_pin, rw_tmp);
         return;
     }    
-    else if (addr == LINE1_END_ADDR+1)          /* End of first line */
+    else if (lcd->addr == LINE1_END_ADDR+1)          /* End of first line */
     {
-        lcd_rs = 0;
-        lcd_rw = 0;
-        lcd_tx_byte(0x80 | LINE2_START_ADDR);
-        addr = LINE2_START_ADDR;
+        write_pin(lcd->rs_pin, 0);
+        write_pin(lcd->rw_pin, 0);
+        lcd_tx_byte(lcd, 0x80 | LINE2_START_ADDR);
+        lcd->addr = LINE2_START_ADDR;
     }
-    else if (addr == LINE2_END_ADDR+1)          /* End of second line */
+    else if (lcd->addr == LINE2_END_ADDR+1)          /* End of second line */
     {
-        lcd_clear();
-        addr = LINE1_START_ADDR;
+        lcd_clear(lcd);
+        lcd->addr = LINE1_START_ADDR;
     }
     
-    lcd_rs = rs_tmp;
-    lcd_rw = rw_tmp;
-    lcd_tx_byte(byte);
-    ++addr;
+    write_pin(lcd->rs_pin, rs_tmp);
+    write_pin(lcd->rw_pin, rw_tmp);
+    lcd_tx_byte(lcd, byte);
+    ++lcd->addr;
 }
+
+static unsigned char read_pin(unsigned char pin)
+{
+    return pin & 1;
+}
+
+static void write_pin(volatile unsigned char* pin, unsigned char data)
+{
+    *pin |= data & 1;
+}
+
+static void strobe_pin(volatile unsigned char* pin)
+{
+    write_pin(pin, 1);
+    write_pin(pin, 0);
+}
+
+static void strobe_pin_slow(volatile unsigned char* pin)
+{
+    write_pin(pin, 1);
+    __delay_us(1);
+    write_pin(pin, 0);
+}
+

@@ -22,6 +22,7 @@
 #pragma config DEBUG = OFF  // In-Circuit Debugger Mode bit (In-Circuit Debugger disabled, RB6/ISCPCLK and RB7/ICSPDAT are general purpose I/O pins)
 
 temp_sensors_t temp_sensors;
+LCD_t lcd;
 //sn74htc138_t decoder;
 volatile unsigned char rx_data = 0xaa;
 //unsigned char index = 0;
@@ -33,7 +34,7 @@ interrupt void ISR(void)
     if (INTF)
     {
         INTF = 0;
-        lcd_clear();
+        lcd_clear(&lcd);
         rx_data = 0;
         INTE = 1;
     }
@@ -181,9 +182,15 @@ void km_long_to_string(unsigned int input, unsigned char *str, unsigned char len
  * Entry point to the MCU application.
  */
 int main(void) {
+    lcd.data_bus = (unsigned char *) &PORTB;
+    lcd.bus_offset = 4;
+    lcd.en_pin = (unsigned char*)((((unsigned char) &PORTB) << 3) + 3);
+    lcd.rs_pin = (unsigned char*)((((unsigned char) &PORTB) << 3) + 2);
+    lcd.rw_pin = (unsigned char*)((((unsigned char) &PORTB) << 3) + 1);
+
     // Initialization procedure
     io_init();
-    lcd_init();
+    lcd_init(&lcd);
     ser_init();
 
     /*owire_t owire_hw;
@@ -234,11 +241,11 @@ int main(void) {
     ser_puts("\n\r");
 #endif
 
-    lcd_puts("Welcome!\nStart typing @$%");
+    lcd_puts(&lcd, "Welcome!\nStart typing @$%");
     ser_puts("Welcome to the LCD module serial interface!\n\r");
 
     rx_data = ser_getch();
-    lcd_clear();
+    lcd_clear(&lcd);
 //    lcd_putch(rx_data);
 //    ser_putch(rx_data);
 
@@ -262,28 +269,28 @@ int main(void) {
         T_MSB = ((TempHi_C << 4) & 0xF0) | ((TempLo_C >> 4) & 0x0F);
         T_LSB = TempLo_C & 0x0F;
 
-        lcd_clear();
-        lcd_home();
+        lcd_clear(&lcd);
+        lcd_home(&lcd);
         if (TempHi_C & 0x80)
         {
-            lcd_puts("-");
+            lcd_puts(&lcd, "-");
             T_MSB ^= 0xFF;
             T_LSB = ((T_LSB ^ 0xFF) + 1) & 0x0F;
         }
         else
         {
-            lcd_puts("+");
+            lcd_puts(&lcd, "+");
         }
         long_to_string(T_MSB, strbuf, 3);   // integer is 3 sig figs
-        lcd_puts(strbuf);
-        lcd_puts(".");
+        lcd_puts(&lcd, strbuf);
+        lcd_puts(&lcd, ".");
         tmp16 = ((unsigned int) T_LSB) * 625;
         long_to_string_lz(tmp16, strbuf, 4);  // fraction is 4 sig figs
-        lcd_puts(strbuf);
-        lcd_putch(CHAR_DEGREE);
-        lcd_puts("C");
+        lcd_puts(&lcd, strbuf);
+        lcd_putch(&lcd, CHAR_DEGREE);
+        lcd_puts(&lcd, "C");
 
-        lcd_goto(LCD_LINE2);
+        lcd_goto(&lcd, LCD_LINE2);
 
         // ----- Conversion to Fahrenheit -----
         // 10F = 16C + (16C + 4) / 8 + 320
@@ -328,18 +335,18 @@ int main(void) {
         km_long_to_string(temperature, strbuf, 8);
 
         if (TempHi_C & 0x80)
-            lcd_puts("- ");
+            lcd_puts(&lcd, "- ");
         else
-            lcd_puts("+ ");
+            lcd_puts(&lcd, "+ ");
 
         // trim string to display
         for (tmp = 0; tmp < 8; tmp++)
         {
             if (strbuf[tmp] != ' ' && strbuf[tmp] != 0)
-                lcd_putch(strbuf[tmp]);
+                lcd_putch(&lcd, strbuf[tmp]);
         }
-        lcd_putch(CHAR_DEGREE);
-        lcd_puts("F");
+        lcd_putch(&lcd, CHAR_DEGREE);
+        lcd_puts(&lcd, "F");
 
         __delay_ms(100);
     }
