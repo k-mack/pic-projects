@@ -1,12 +1,12 @@
 /*
+ * Author: Kevin Macksamie
+ *
  * LCD interface header file.
  * See lcd.c for more info.
  */
 
 #ifndef LCD_H
 #define LCD_H
-
-#include <xc.h>
 
 #define CR        0x0D          /* Carriage return */
 #define BACKSPACE 0x08          /* Backspace */
@@ -35,7 +35,7 @@ void lcd_clear(void);
 void lcd_disable(void);
 
 /* Move cursor to address */
-void lcd_goto(unsigned char);
+void lcd_goto(unsigned char pos);
 
 /* Return cursor home */
 void lcd_home(void);
@@ -44,9 +44,9 @@ void lcd_home(void);
 void lcd_init(void);
 
 /* Write a string to the LCD */
-void lcd_putch(unsigned char);
+void lcd_putch(unsigned char byte);
 
 /* Write a string to the LCD */
-void lcd_puts(const char*);
+void lcd_puts(const char* str);
 
 #endif

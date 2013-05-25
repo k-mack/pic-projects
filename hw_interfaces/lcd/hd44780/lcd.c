@@ -1,4 +1,3 @@
-#include <xc.h>
 #include "lcd.h"
  
 /*** LCD device with HD44780 driver ***/
@@ -7,13 +6,15 @@ static volatile unsigned char *lcd_db = (unsigned char *) &PORTB; /* Data */
 static unsigned char lcd_doffset = 4; /* Data offset in the register */
 static unsigned char addr = LINE1_START_ADDR; /* Address counter */
 
-/* Read/Write Enable Pulse 
+/* 
+ * Read/Write Enable Pulse 
  * 0: Disabled
  * 1: Read/Write operation enabled
  */
 static volatile bit lcd_en @ ((unsigned)&PORTB<<3)+3;
 
-/* Register Select
+/* 
+ * Register Select
  * 0: Instruction register during write 
  * operations. Busy Flash during read
  * operations.
@@ -21,7 +22,8 @@ static volatile bit lcd_en @ ((unsigned)&PORTB<<3)+3;
  */
 static volatile bit lcd_rs @ ((unsigned)&PORTB<<3)+2;
 
-/* Read/Write Control
+/* 
+ * Read/Write Control
  * 0: WRITE, LCD accepts data
  * 1: READ, LCD presents data
  */
